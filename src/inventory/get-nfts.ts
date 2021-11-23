@@ -8,9 +8,13 @@ export interface Nft {
   data: any;
 }
 
-export default async function getNfts(address: string): Promise<Nft[]> {
+const cache: {
+  [key: string]: any
+} = {};
+
+async function getData(address: string): Promise<any> {
   const chainId: string = "137"; // Polygon Mainnet
-  const res = await axios({
+  const req = axios({
     baseURL: "https://api.covalenthq.com/v1",
     method: "GET",
     url: `/${chainId}/address/${address}/balances_v2/`,
@@ -22,7 +26,21 @@ export default async function getNfts(address: string): Promise<Nft[]> {
       "no-nft-fetch": false,
     },
   });
-  const items: any[] = res.data.data.items;
+
+  if (cache[address]) {
+    req.then((res) => {
+      cache[address] = res.data;
+    });
+    return cache[address];
+  } else {
+    const res = await req;
+    cache[address] = res.data;
+    return cache[address];
+  }
+}
+
+export default async function getNfts(address: string): Promise<Nft[]> {
+  const items: any[] = (await getData(address)).data.items;
   const nfts = await Promise.all(
     items
       .filter(({ type }) => type === "nft")
